@@ -1,0 +1,37 @@
+{
+  "pluginAlias": "netro-whisperer",
+  "pluginType": "accessory",
+  "singular": false,
+  "headerDisplay": "Netro Whisperer plugin",
+  "footerDisplay": "For help please see the [wiki](https://github.com/ChristopheG666/homebridge-netro-whisperer/blob/main/README.md).",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "required": true
+      },
+      "sensorSerial": {
+        "title": "Sensor Serial Number",
+        "type": "string",
+        "required": true,
+         "description": "The serial number of your sensor, it can be find in the Netro App, in `Setting->Sensors -> Serial Number`. (For more information see https://netrohome.com/en/shop/articles/10)"
+      },
+      "pullInterval": {
+        "title": "Pull Interval",
+        "type": "integer",
+        "required": false,
+        "minimum": 1,
+        "description": "the minimum time (in minutes) between calls to the Netro API. Otherwise the cached value will be reported. Default value is 30 minutes"
+      },
+      "debug": {
+        "title": "debug",
+        "type": "boolean",
+        "required": false,
+         "default": false,
+        "description": "Enable debug message in logs"
+      }
+    }
+  }
+}

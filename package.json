@@ -1,0 +1,30 @@
+{
+  "name": "homebridge-netro-whisperer",
+  "version": "0.0.0",
+  "description": "Homebridge plugin to support Netro Whisperer sensor",
+  "license": "ISC",
+  "keywords": [
+    "homebridge-plugin"
+  ],
+  "scripts": {
+    "test": "echo no test specified"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ChristopheG666/homebridge-netro-whisperer"
+  },
+  "bugs": {
+    "url": "https://github.com/ChristopheG666/homebridge-netro-whisperer/issues"
+  },
+  "engines": {
+    "node": ">=10.17.0",
+    "homebridge": ">=0.4.0"
+  },
+  "dependencies": {
+    "fakegato-history": "^0.6.3",
+    "homebridge-http-base": "~2.1.12"
+  },
+  "devDependencies": {
+    "homebridge": "^1.3.5"
+  }
+}

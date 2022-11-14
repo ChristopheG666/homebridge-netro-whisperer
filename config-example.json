@@ -1,0 +1,6 @@
+{
+        "accessory": "netro-whisperer",
+        "sensorSerial": "1234567",
+        "name": "Netro Whisperer Sensor",
+        "pullInterval": 30
+}
