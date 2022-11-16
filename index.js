@@ -47,7 +47,7 @@ module.exports = function(homebridge) {
 
         this.name = config.name;
         this.displayName = config.name;
-        this.serial = config.serial || "000";
+        this.serial = config.serial || this.sensorSerial;
         this.debug = config.debug || false;
         this.pullInterval = config.pullInterval || 30;
 
