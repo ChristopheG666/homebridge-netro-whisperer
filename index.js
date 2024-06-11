@@ -242,12 +242,10 @@ module.exports = function(homebridge) {
 
                     that.fakeWeatherEveService.setCharacteristic(Characteristic.CurrentTemperature, that.temperature);
                     that.fakeWeatherEveService.setCharacteristic(Characteristic.CurrentRelativeHumidity, that.humidity);
-                    that.fakeWeatherEveService.setCharacteristic(CustomCharacteristic.AirPressure, that.airPressure);
 
                     that.loggingService.addEntry({
                         time: time.getTime() / 1000,
                         temp: that.temperature,
-                        pressure: that.airPressure,
                         humidity: that.humidity
                     });
 
