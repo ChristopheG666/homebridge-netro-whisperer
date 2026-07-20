@@ -1,7 +1,7 @@
 /*jshint esversion: 6,node: true,-W041: false */
 "use strict";
 var inherits = require('util').inherits;
-var Service, Characteristic;
+var Service, Characteristic, Formats, Perms;
 var timeout;
 
 const version = require('./package.json').version;
@@ -26,6 +26,8 @@ module.exports = function(homebridge) {
     var FakeGatoHistoryService = require('fakegato-history')(homebridge);
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
+    Formats = homebridge.hap.Formats || Characteristic.Formats;
+    Perms = homebridge.hap.Perms || Characteristic.Perms;
     homebridge.registerAccessory("homebridge-netro-whisperer", "netro-whisperer", NetroSensor);
 
     function NetroSensor(log, config) {
@@ -66,33 +68,35 @@ module.exports = function(homebridge) {
 
         // 
 
-        CustomCharacteristic.AirPressure = function() {
-            Characteristic.call(this, strings.AIR_PRESSURE, CustomUUID.AirPressure);
-            this.setProps({
-                format: Characteristic.Formats.UINT16,
-                unit: "mBar",
-                maxValue: 100,
-                minValue: 0,
-                minStep: 1,
-                perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY]
-            });
-            this.value = this.getDefaultValue();
-        };
-        inherits(CustomCharacteristic.AirPressure, Characteristic);
-
-
-        EveService.WeatherService = function(displayName, subtype) {
-            Service.call(this, displayName, 'E863F001-079E-48FF-8F27-9C2605A29F52', subtype);
-            this.addCharacteristic(Characteristic.CurrentTemperature);
-            this.addCharacteristic(Characteristic.CurrentRelativeHumidity);
-            this.addCharacteristic(CustomCharacteristic.AirPressure);
-            this.getCharacteristic(Characteristic.CurrentTemperature)
-                .setProps({
-                    minValue: -40,
-                    maxValue: 60
+        CustomCharacteristic.AirPressure = class extends Characteristic {
+            constructor() {
+                super(strings.AIR_PRESSURE, CustomUUID.AirPressure);
+                this.setProps({
+                    format: Formats.UINT16,
+                    unit: "mBar",
+                    maxValue: 100,
+                    minValue: 0,
+                    minStep: 1,
+                    perms: [Perms.READ, Perms.NOTIFY]
                 });
+                this.value = this.getDefaultValue();
+            }
         };
-        inherits(EveService.WeatherService, Service);
+
+
+        EveService.WeatherService = class extends Service {
+            constructor(displayName, subtype) {
+                super(displayName, 'E863F001-079E-48FF-8F27-9C2605A29F52', subtype);
+                this.addCharacteristic(Characteristic.CurrentTemperature);
+                this.addCharacteristic(Characteristic.CurrentRelativeHumidity);
+                this.addCharacteristic(CustomCharacteristic.AirPressure);
+                this.getCharacteristic(Characteristic.CurrentTemperature)
+                    .setProps({
+                        minValue: -40,
+                        maxValue: 60
+                    });
+            }
+        };
 
         this.informationService = new Service.AccessoryInformation();
         this.informationService
