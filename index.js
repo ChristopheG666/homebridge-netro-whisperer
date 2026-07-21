@@ -66,38 +66,6 @@ module.exports = function(homebridge) {
             return;
         }
 
-        // 
-
-        CustomCharacteristic.AirPressure = class extends Characteristic {
-            constructor() {
-                super(strings.AIR_PRESSURE, CustomUUID.AirPressure);
-                this.setProps({
-                    format: Formats.UINT16,
-                    unit: "mBar",
-                    maxValue: 100,
-                    minValue: 0,
-                    minStep: 1,
-                    perms: [Perms.READ, Perms.NOTIFY]
-                });
-                this.value = this.getDefaultValue();
-            }
-        };
-
-
-        EveService.WeatherService = class extends Service {
-            constructor(displayName, subtype) {
-                super(displayName, 'E863F001-079E-48FF-8F27-9C2605A29F52', subtype);
-                this.addCharacteristic(Characteristic.CurrentTemperature);
-                this.addCharacteristic(Characteristic.CurrentRelativeHumidity);
-                this.addCharacteristic(CustomCharacteristic.AirPressure);
-                this.getCharacteristic(Characteristic.CurrentTemperature)
-                    .setProps({
-                        minValue: -40,
-                        maxValue: 60
-                    });
-            }
-        };
-
         this.informationService = new Service.AccessoryInformation();
         this.informationService
             .setCharacteristic(Characteristic.Manufacturer, "Netro")
@@ -106,8 +74,13 @@ module.exports = function(homebridge) {
             .setCharacteristic(Characteristic.SerialNumber, this.serial);
 
 
-        this.fakeWeatherEveService = new EveService.WeatherService(this.name);
-        this.fakeWeatherEveService.getCharacteristic(Characteristic.CurrentTemperature).on("get", this.getTemperature.bind(this));
+        // NOTE: The custom Eve WeatherService (UUID E863F001...) and its custom
+        // "Air pressure" characteristic (unit "mBar") are intentionally NOT
+        // exposed to HomeKit. iOS validates the whole accessory database and
+        // rejects the non-standard unit/metadata, flagging the accessory as
+        // "out of compliance". Live values are exposed via the standard
+        // Temperature/Humidity/Battery services below, and history is still
+        // recorded through the FakeGato logging service.
 
         this.loggingService = new FakeGatoHistoryService("weather", this, {
             storage: 'fs',
@@ -121,17 +94,27 @@ module.exports = function(homebridge) {
                 maxValue: 100
             })
             .on("get", this.getTemperature.bind(this));
-
-        this.tempService = new Service.TemperatureSensor(this.name);
-        this.tempService.getCharacteristic(Characteristic.CurrentTemperature)
-            .setProps({
-                minValue: -100,
-                maxValue: 100
-            })
-            .on("get", this.getTemperature.bind(this));
         this.humidityService = new Service.HumiditySensor(this.name);
         this.humidityService.getCharacteristic(Characteristic.CurrentRelativeHumidity)
             .on("get", this.getHumidity.bind(this));
+
+        this.lowBatteryThreshold = config.lowBatteryThreshold || 20;
+        this.batteryService = new Service.Battery(this.name);
+        this.batteryService.getCharacteristic(Characteristic.BatteryLevel)
+            .on("get", this.getBatteryLevel.bind(this));
+        this.batteryService.getCharacteristic(Characteristic.StatusLowBattery)
+            .on("get", this.getStatusLowBattery.bind(this));
+        // Sensor is not rechargeable.
+        this.batteryService.setCharacteristic(Characteristic.ChargingState, Characteristic.ChargingState.NOT_CHARGEABLE);
+
+        // Initialize with valid, in-range values so HomeKit never reads an
+        // undefined or out-of-range value (which triggers "Accessory out of
+        // compliance" in Home.app).
+        this.temperature = 0;
+        this.humidity = 0;
+        // Battery is kept in `airPressure` as well so the FakeGato/Eve history
+        // graph (which logs it as "pressure") keeps working.
+        this.airPressure = 100;
 
         this.lastUpdate = new Date(0);
 
@@ -148,7 +131,7 @@ module.exports = function(homebridge) {
         },
 
         getServices: function() {
-            return [this.informationService, this.tempService, this.humidityService, this.fakeWeatherEveService, this.loggingService];
+            return [this.informationService, this.tempService, this.humidityService, this.batteryService, this.loggingService];
         },
 
         getTemperature: function(callback) {
@@ -159,6 +142,18 @@ module.exports = function(homebridge) {
         getHumidity: function(callback) {
             this.updateSensorData();
             callback(null, this.humidity);
+        },
+
+        getBatteryLevel: function(callback) {
+            this.updateSensorData();
+            callback(null, this.airPressure);
+        },
+
+        getStatusLowBattery: function(callback) {
+            this.updateSensorData();
+            callback(null, this.airPressure <= this.lowBatteryThreshold ?
+                Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW :
+                Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
         },
 
         updateSensorData: function() {
@@ -240,13 +235,27 @@ module.exports = function(homebridge) {
                             time, time.getTime() / 1000, id, temperature, humidity, battery);
 
                     that.id = id;
-                    that.temperature = temperature;
-                    that.humidity = humidity;
-                    that.airPressure = battery;
 
-                    that.fakeWeatherEveService.setCharacteristic(Characteristic.CurrentTemperature, that.temperature);
-                    that.fakeWeatherEveService.setCharacteristic(Characteristic.CurrentRelativeHumidity, that.humidity);
-                    that.fakeWeatherEveService.setCharacteristic(CustomCharacteristic.AirPressure, that.airPressure);
+                    // Only accept successfully extracted values; -666 is the
+                    // error sentinel and must never reach HomeKit. Clamp to the
+                    // declared characteristic ranges to stay HAP-compliant.
+                    let clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+                    if (temperature != -666)
+                        that.temperature = clamp(temperature, -100, 100);
+                    if (humidity != -666)
+                        that.humidity = clamp(humidity, 0, 100);
+                    if (battery != -666)
+                        that.airPressure = clamp(battery, 0, 100);
+
+                    that.tempService.setCharacteristic(Characteristic.CurrentTemperature, that.temperature);
+                    that.humidityService.setCharacteristic(Characteristic.CurrentRelativeHumidity, that.humidity);
+                    // Duplicate the battery value into the real BatteryService.
+                    that.batteryService.setCharacteristic(Characteristic.BatteryLevel, that.airPressure);
+                    that.batteryService.setCharacteristic(Characteristic.StatusLowBattery,
+                        that.airPressure <= that.lowBatteryThreshold ?
+                            Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW :
+                            Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
 
                     that.loggingService.addEntry({
                         time: time.getTime() / 1000,
