@@ -1,7 +1,7 @@
 {
-  "name": "homebridge-netro-whisperer",
+  "name": "homebridge-netro-whisperer-v2",
   "version": "1.2.0",
-  "description": "Homebridge plugin to support Netro Whisperer sensor",
+  "description": "Homebridge plugin to support Netro Whisperer sensor V2 (lost my previous account...)",
   "license": "ISC",
   "keywords": [
     "homebridge-plugin"
