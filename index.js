@@ -249,7 +249,9 @@ module.exports = function(homebridge) {
                         that.airPressure = clamp(battery, 0, 100);
 
                     that.tempService.setCharacteristic(Characteristic.CurrentTemperature, that.temperature);
-                    that.humidityService.setCharacteristic(Characteristic.CurrentRelativeHumidity, that.humidity);
+                    // When the device is too hot, the humdity value is 100%... do not log it
+                    if (humidity < 99)
+                        that.humidityService.setCharacteristic(Characteristic.CurrentRelativeHumidity, that.humidity);
                     // Duplicate the battery value into the real BatteryService.
                     that.batteryService.setCharacteristic(Characteristic.BatteryLevel, that.airPressure);
                     that.batteryService.setCharacteristic(Characteristic.StatusLowBattery,
@@ -257,12 +259,21 @@ module.exports = function(homebridge) {
                             Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW :
                             Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL);
 
-                    that.loggingService.addEntry({
-                        time: time.getTime() / 1000,
-                        temp: that.temperature,
-                        pressure: that.airPressure,
-                        humidity: that.humidity
-                    });
+                    if (humidity < 99)
+                        that.loggingService.addEntry({
+                            time: time.getTime() / 1000,
+                            temp: that.temperature,
+                            pressure: that.airPressure,
+                            humidity: that.humidity
+                        });
+                    else
+                        if (humidity < 99)
+                        that.loggingService.addEntry({
+                            time: time.getTime() / 1000,
+                            temp: that.temperature,
+                            pressure: that.airPressure
+                        });
+
 
                 } else {
                     that.log.debug("Error retrieving the sensor data: %s", error);
